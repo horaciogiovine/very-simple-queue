@@ -195,6 +195,7 @@ class MysqlDriver {
    */
   async getAllJobsByQueue(queue) {
     const query = 'SELECT * FROM jobs WHERE queue = ?';
+    console.log('-------------- queue query: ', query);
     return this.#run(query, [queue]);
   }
 }
