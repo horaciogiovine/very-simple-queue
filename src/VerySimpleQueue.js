@@ -192,6 +192,12 @@ class VerySimpleQueue {
   async work(jobHandler, settings) {
     await this.#queueClient.work(jobHandler, settings);
   }
+
+  /************** custom code */
+  
+  async getAllJobsByQueue(queue = 'default') {
+    return this.#queueClient.getAllJobsByQueue(queue);
+  }
 }
 
 module.exports = VerySimpleQueue;

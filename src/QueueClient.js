@@ -139,6 +139,14 @@ class QueueClient {
   async work(jobHandler, settings) {
     await this.#worker.work(this, jobHandler, settings);
   }
+
+  /************** custom code */
+  
+  async getAllJobsByQueue(queue = 'default') {
+    const jobs = await this.#dbDriver.getAllJobsByQueue(queue);
+
+    return jobs;
+  }
 }
 
 module.exports = QueueClient;

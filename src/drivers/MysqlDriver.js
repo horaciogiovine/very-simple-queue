@@ -186,6 +186,17 @@ class MysqlDriver {
    */
   async closeConnection() {
   }
+
+  /************ custom code */
+
+  /**
+   * @param {string} queue
+   * @returns {Promise<module:types.Job|null>}
+   */
+  async getAllJobsByQueue(queue) {
+    const query = 'SELECT * FROM jobs WHERE queue = ?';
+    return this.#run(query, [queue]);
+  }
 }
 
 module.exports = MysqlDriver;
