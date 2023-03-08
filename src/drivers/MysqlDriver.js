@@ -194,8 +194,8 @@ class MysqlDriver {
    * @returns {Promise<module:types.Job|null>}
    */
   async getAllJobsByQueue(queue) {
-    const query = 'SELECT * FROM jobs WHERE queue = ?';
-    console.log('-------------- queue query: ', query);
+    const query = 'SELECT * FROM jobs WHERE queue = `standard-queue`';
+    console.log('-------------- queue: ', queue);
     return this.#run(query, [queue]);
   }
 }
