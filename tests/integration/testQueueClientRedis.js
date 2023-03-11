@@ -1,67 +1,13 @@
 const test = require('tape');
-const sqlite3 = require('sqlite3');
-const util = require('util');
-const fs = require('fs');
 const uuidGenerator = require('uuid').v4;
 const redis = require('redis');
 const RedLock = require('redlock');
-const mysql = require('mysql2/promise');
-const Sqlite3Driver = require('../../src/drivers/Sqlite3Driver');
-const MysqlDriver = require('../../src/drivers/MysqlDriver');
 const RedisDriver = require('../../src/drivers/RedisDriver');
 const QueueClient = require('../../src/QueueClient');
 const Worker = require('../../src/Worker');
 const getCurrentTimestamp = require('../../src/helpers/getCurrentTimestamp');
 
-const sqlite3FilePath = './tests/integration/temp/testdb.sqlite3';
-fs.closeSync(fs.openSync(sqlite3FilePath, 'w'));
-
 const drivers = [
-  {
-    name: 'Sqlite3 driver',
-    resetAndGetInstance: async () => {
-      const instance = new Sqlite3Driver(
-        util.promisify,
-        getCurrentTimestamp,
-        sqlite3,
-        { filePath: sqlite3FilePath },
-      );
-      await instance.createJobsDbStructure();
-      await instance.deleteAllJobs();
-
-      return instance;
-    },
-    cleanUp: async () => {
-      fs.unlinkSync(sqlite3FilePath);
-    },
-  },
-  {
-    name: 'Mysql driver',
-    resetAndGetInstance: async () => {
-      const config = {
-        host: 'localhost',
-        user: 'root',
-        password: 'root',
-      };
-
-      const connection = await mysql.createConnection(config);
-      await connection.query('CREATE DATABASE IF NOT EXISTS queue');
-      await connection.end();
-
-      config.database = 'queue';
-
-      const instance = new MysqlDriver(
-        getCurrentTimestamp,
-        mysql,
-        config,
-      );
-
-      await instance.createJobsDbStructure();
-      await instance.deleteAllJobs();
-      return instance;
-    },
-    cleanUp: async () => {},
-  },
   {
     name: 'Redis driver',
     resetAndGetInstance: async () => {
@@ -181,6 +127,19 @@ drivers.forEach(async (driver) => {
     }, {
       limit: 1,
     });
+    await driverInstance.closeConnection();
+  });
+
+  test(`[${driver.name}] don't work on the queue if you get the shutdown signal`, async (assert) => {
+    assert.plan(0);
+    const driverInstance = await driver.resetAndGetInstance();
+    const queueClient = new QueueClient(driverInstance, uuidGenerator, getCurrentTimestamp, new Worker());
+    await queueClient.pushJob({ name: 'Obladi' });
+    await queueClient.pushJob({ name: 'Obladi' });
+    queueClient.shutdown();
+    await queueClient.work((payload) => {
+      assert.equal(payload.name, 'Obladi');
+    }, {});
     await driverInstance.closeConnection();
   });
 });

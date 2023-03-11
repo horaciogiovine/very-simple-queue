@@ -15,6 +15,9 @@ class QueueClient {
   /** @type {Worker} */
   #worker
 
+  /** @type {boolean} */
+  #shouldShutdown
+
   #handleJob
 
   /**
@@ -140,8 +143,23 @@ class QueueClient {
     await this.#worker.work(this, jobHandler, settings);
   }
 
+  /**
+   * Signals the workers to stop working after they have finished with the current job.
+   *
+   * @returns {void}
+   */
+  shutdown() {
+    this.#shouldShutdown = true;
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  shouldShutdown() {
+    return this.#shouldShutdown;
+  }
+
   /************** custom code */
-  
   async getAllJobsByQueue(queue = 'default') {
     const jobs = await this.#dbDriver.getAllJobsByQueue(queue);
 

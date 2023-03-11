@@ -112,8 +112,8 @@ class VerySimpleQueue {
   }
 
   /**
-   * Handle one job on the given queue
-   * The job get's deleted if it doesn't fail and is marked a failed if it does
+   * Handle one job in the given queue.
+   * The job gets deleted if it doesn't fail, and is marked as failed if it does.
    *
    * @param {module:types.JobHandler} jobHandler - Function that will receive the payload
    * and handle the job
@@ -193,8 +193,16 @@ class VerySimpleQueue {
     await this.#queueClient.work(jobHandler, settings);
   }
 
+  /**
+   * Signals the workers to stop working after they have finished with the current job.
+   *
+   * @returns {void}
+   */
+  shutdown() {
+    this.#queueClient.shutdown();
+  }
+
   /************** custom code */
-  
   async getAllJobsByQueue(queue = 'default') {
     return this.#queueClient.getAllJobsByQueue(queue);
   }
