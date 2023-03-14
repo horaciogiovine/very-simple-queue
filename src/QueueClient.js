@@ -31,6 +31,7 @@ class QueueClient {
     this.#uuidGenerator = uuidGenerator;
     this.#getCurrentTimestamp = getCurrentTimestamp;
     this.#worker = worker;
+    this.#shouldShutdown = false;
 
     /**
      * @param {module:types.Job} job
