@@ -165,6 +165,10 @@ class QueueClient {
 
     return jobs;
   }
+
+  async enqueueAllReservedJobs(queue = 'default') {
+    return await this.#dbDriver.enqueueAllReservedJobs(queue);
+  }
 }
 
 module.exports = QueueClient;

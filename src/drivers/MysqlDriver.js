@@ -224,8 +224,26 @@ class MysqlDriver {
    */
   async getAllJobsByQueue(queue) {
     const query = 'SELECT * FROM jobs WHERE queue = ?';
-    
+
     return this.#run(query, [queue]);
+  }
+
+  async enqueueAllReservedJobs(queue) {
+    const connection = await this.#getNewConnection();
+    try {
+      await this.#runWithConnection(connection, 'START TRANSACTION;', []);
+      
+      const timestamp = this.#getCurrentTimestamp();
+      
+      await this.#runWithConnection(connection, `UPDATE jobs SET reserved_at = NULL, failed_at = NULL WHERE queue = "${queue}" AND reserved_at IS NOT NULL AND reserved_at < UNIX_TIMESTAMP()`, []);
+      await this.#runWithConnection(connection, 'COMMIT', []);
+      await connection.end()
+      return job;
+    } catch (error) {
+      await this.#runWithConnection(connection, 'ROLLBACK', []);
+      await connection.end()
+      return null;
+    }
   }
 }
 

@@ -206,6 +206,10 @@ class VerySimpleQueue {
   async getAllJobsByQueue(queue = 'default') {
     return this.#queueClient.getAllJobsByQueue(queue);
   }
+
+  async enqueueAllReservedJobs(queue = 'default') {
+    return this.#queueClient.enqueueAllReservedJobs(queue);
+  }
 }
 
 module.exports = VerySimpleQueue;
