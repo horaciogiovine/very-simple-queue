@@ -37,7 +37,6 @@ class Worker {
     let jobQuantity = 0;
     // eslint-disable-next-line no-constant-condition
 
-    console.log('-----queueClient.shouldShutdown():: ', queueClient.shouldShutdown());
     while (!queueClient.shouldShutdown()) {
       jobQuantity += 1;
       try {
