@@ -210,6 +210,14 @@ class VerySimpleQueue {
   async enqueueAllReservedJobs(queue = 'default') {
     return this.#queueClient.enqueueAllReservedJobs(queue);
   }
+
+  shouldShutdown() {
+    return this.#queueClient.shouldShutdown();
+  }
+
+  turnOn() {
+    return this.#queueClient.turnOn();
+  }
 }
 
 module.exports = VerySimpleQueue;

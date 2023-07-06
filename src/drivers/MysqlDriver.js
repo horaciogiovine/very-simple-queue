@@ -74,9 +74,12 @@ class MysqlDriver {
      */
     this.#run = async (query, params = []) => {
       const connection = await this.#getNewConnection();
+
+      console.log('--------: ', params);
       const results = params.length === 0
         ? await connection.query(query) : await connection.execute(query, params);
 
+        // console.log('-- connection.query: ', results)
       await connection.end();
 
       return this.#parseQueryResults(results);
@@ -162,7 +165,7 @@ class MysqlDriver {
    * @returns {Promise<module:types.Job|null>}
    */
   async getJob(queue) {
-    const query = 'SELECT * FROM jobs WHERE queue = ? AND failed_at IS NULL AND reserved_at IS NULL ORDER BY RAND() LIMIT 1';
+    const query = 'SELECT * FROM jobs WHERE queue = ? AND failed_at IS NULL AND reserved_at IS NULL ORDER BY created_at DESC LIMIT 1';
     return this.#reserveJob(query, [queue]);
   }
 
@@ -174,6 +177,26 @@ class MysqlDriver {
     const query = 'SELECT * FROM jobs WHERE uuid = ? AND reserved_at IS NULL LIMIT 1';
 
     return this.#reserveJob(query, [jobUuid]);
+  }
+
+  /**
+   * @param {string} jobUuid
+   * @returns {Promise<module:types.Job|null>}
+   */
+  async updateJobByUuid({ created_at = null, reserved_at = null, failed_at = null, uuid }) {
+    const query = 'UPDATE jobs SET created_at = ?, reserved_at = ?, failed_at = ? WHERE uuid = ?';
+
+    return this.#run(query, [created_at, reserved_at, failed_at, uuid]);
+  }
+
+  /**
+   * @param {string} jobPayload
+   * @returns {Promise<module:types.Job|null>}
+   */
+  async getJobByPayload(jobPayload) {
+    const query = 'SELECT * FROM jobs WHERE payload = ?';
+
+    return this.#run(query, [jobPayload]);
   }
 
   /**

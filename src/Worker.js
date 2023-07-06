@@ -36,6 +36,7 @@ class Worker {
     const log = settings.loggerFunction;
     let jobQuantity = 0;
     // eslint-disable-next-line no-constant-condition
+
     while (!queueClient.shouldShutdown()) {
       jobQuantity += 1;
       try {

@@ -31,6 +31,7 @@ class QueueClient {
     this.#uuidGenerator = uuidGenerator;
     this.#getCurrentTimestamp = getCurrentTimestamp;
     this.#worker = worker;
+    this.#shouldShutdown = false;
 
     /**
      * @param {module:types.Job} job
@@ -83,7 +84,17 @@ class QueueClient {
       failed_at: null,
     };
 
-    await this.#dbDriver.storeJob(job);
+    let existingJob = [await this.#dbDriver.getJobByPayload(payload)].flat();
+
+    if (!existingJob.length) {
+      await this.#dbDriver.storeJob(job);
+    } else {
+      // Effectively moving a job to the top on the queue
+      const previousJob = existingJob[0];
+      previousJob.created_at = job.created_at;
+
+      await this.#dbDriver.updateJobByUuid(previousJob);
+    }
 
     return job.uuid;
   }
@@ -168,6 +179,10 @@ class QueueClient {
 
   async enqueueAllReservedJobs(queue = 'default') {
     return await this.#dbDriver.enqueueAllReservedJobs(queue);
+  }
+
+  turnOn() {
+    this.#shouldShutdown = false;
   }
 }
 
