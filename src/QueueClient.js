@@ -84,7 +84,17 @@ class QueueClient {
       failed_at: null,
     };
 
-    await this.#dbDriver.storeJob(job);
+    let existingJob = [await this.#dbDriver.getJobByPayload(payload)].flat();
+
+    if (!existingJob.length) {
+      await this.#dbDriver.storeJob(job);
+    } else {
+      // Effectively moving a job to the top on the queue
+      const previousJob = existingJob[0];
+      previousJob.created_at = job.created_at;
+
+      await this.#dbDriver.updateJobByUuid(previousJob);
+    }
 
     return job.uuid;
   }
