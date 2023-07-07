@@ -43,7 +43,7 @@ class Worker {
         const result = await queueClient.handleJob(jobHandler, settings.queue, true);
 
         if (settings.logResults) {
-          log(`Result: ${JSON.stringify(result)}`);
+          // do something once we recieve the result
         }
       } catch (error) {
         if (settings.logErrors) {

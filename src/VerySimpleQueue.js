@@ -150,6 +150,27 @@ class VerySimpleQueue {
     return this.#queueClient.handleJobByUuid(jobHandler, jobUuid, throwErrorOnFailure);
   }
 
+    /**
+   * Handle a job by uuid
+   * Same as handleJob but here you know which job you want to handle
+   *
+   * @param {module:types.JobHandler} jobHandler - Function that will receive the payload
+   * and handle the job
+   * @param {string} jobUuid - The job uuid that you've got when you pushed the job
+   * @param {boolean} [throwErrorOnFailure=false] -
+   * If a job fails, mark it failed and then throw an error
+   * @returns {Promise<*>} - A promise of what the jobHandler returns
+   *
+   * @example
+   * verySimpleQueue.handleFinishedJobByUuid(
+   *  (payload) => sendEmail(payload.email),
+   *  'd5dfb2d6-b845-4e04-b669-7913bfcb2600'
+   * );
+   */
+    async handleFinishedJobByUuid(jobHandler, jobUuid, throwErrorOnFailure = false) {
+      return this.#queueClient.handleFinishedJobByUuid(jobHandler, jobUuid, throwErrorOnFailure);
+    }
+
   /**
    * Handle a job that failed on a given queue
    *
@@ -205,6 +226,10 @@ class VerySimpleQueue {
   /************** custom code */
   async getAllJobsByQueue(queue = 'default') {
     return this.#queueClient.getAllJobsByQueue(queue);
+  }
+
+  async getFinishedJobsByQueue(queue = 'default') {
+    return this.#queueClient.getFinishedJobsByQueue(queue);
   }
 
   async enqueueAllReservedJobs(queue = 'default') {

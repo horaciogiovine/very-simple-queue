@@ -1,3 +1,4 @@
+const uuidGenerator = require('uuid').v4;
 
 /**
  * @class
@@ -75,14 +76,16 @@ class MysqlDriver {
     this.#run = async (query, params = []) => {
       const connection = await this.#getNewConnection();
 
-      console.log('--------: ', params);
+      console.log('--------: ', params, query);
       const results = params.length === 0
         ? await connection.query(query) : await connection.execute(query, params);
 
-        // console.log('-- connection.query: ', results)
+      // console.log('-- connection.query: ', results)
       await connection.end();
-
-      return this.#parseQueryResults(results);
+      console.log('--- before parse results: ', params, query, results);
+      const result = this.#parseQueryResults(results);
+      console.log('--- after parse results: ', params, query, result);
+      return result;
     };
 
     /**
@@ -143,6 +146,20 @@ class MysqlDriver {
       + ')';
 
     await this.#run(query);
+
+    const createFinishedJobsTableSQL = 'CREATE TABLE IF NOT EXISTS finished_jobs(' +
+      'uuid CHAR(36) NOT NULL,' +
+      'queue TEXT NOT NULL,' +
+      'payload TEXT NOT NULL,' +
+      'created_at INT(10) UNSIGNED NOT NULL,' +
+      'reserved_at INT(10) UNSIGNED NULL,' +
+      'failed_at INT(10) UNSIGNED NULL,' +
+      'completed_at INT(10) UNSIGNED NULL,' +
+      'PRIMARY KEY (uuid),' +
+      'KEY idx_payload (payload(255))' +
+      ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
+
+    await this.#run(createFinishedJobsTableSQL);
   }
 
   /**
@@ -152,11 +169,31 @@ class MysqlDriver {
   async storeJob(job) {
     const query = 'INSERT INTO jobs(uuid, queue, payload, created_at) VALUES (?, ?, ?, ?)';
 
+    console.log('-- storeJob');
     await this.#run(query, [
       job.uuid,
       job.queue,
       JSON.stringify(job.payload),
       job.created_at,
+    ]);
+  }
+
+  /**
+ * @param {module:types.Job} job
+ * @returns {Promise<void>}
+ */
+  async storeFinishedJob(job) {
+    const query = 'INSERT INTO finished_jobs(uuid, queue, payload, created_at, reserved_at, failed_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?)';
+
+    console.log('-- storeFinishedJob');
+    await this.#run(query, [
+      uuidGenerator(),
+      job.queue,
+      JSON.stringify(job.payload),
+      job.created_at,
+      job.reserved_at,
+      job.failed_at,
+      job.completed_at,
     ]);
   }
 
@@ -183,9 +220,20 @@ class MysqlDriver {
    * @param {string} jobUuid
    * @returns {Promise<module:types.Job|null>}
    */
+  async getFinishedJobByUuid(jobUuid) {
+    const query = 'SELECT * FROM finished_jobs WHERE uuid = ? LIMIT 1';
+
+    return this.#reserveJob(query, [jobUuid]);
+  }
+
+  /**
+   * @param {string} jobUuid
+   * @returns {Promise<module:types.Job|null>}
+   */
   async updateJobByUuid({ created_at = null, reserved_at = null, failed_at = null, uuid }) {
     const query = 'UPDATE jobs SET created_at = ?, reserved_at = ?, failed_at = ? WHERE uuid = ?';
 
+    console.log('-- updateJobByUuid');
     return this.#run(query, [created_at, reserved_at, failed_at, uuid]);
   }
 
@@ -196,6 +244,7 @@ class MysqlDriver {
   async getJobByPayload(jobPayload) {
     const query = 'SELECT * FROM jobs WHERE payload = ?';
 
+    console.log('-- getJobByPayload');
     return this.#run(query, [jobPayload]);
   }
 
@@ -214,7 +263,17 @@ class MysqlDriver {
    * @returns {Promise<void>}
    */
   async deleteJob(jobUuid) {
+    console.log('-- deleteJob');
     await this.#run('DELETE FROM jobs WHERE reserved_at IS NOT NULL AND uuid = ?', [jobUuid]);
+  }
+
+  /**
+   * @param {string} jobUuid
+   * @returns {Promise<void>}
+   */
+  async removeFinishedJobByUuid(jobUuid) {
+    console.log('-- removeFinishedJobByUuid');
+    await this.#run('DELETE FROM finished_jobs WHERE uuid = ?', [jobUuid]);
   }
 
   /**
@@ -223,6 +282,7 @@ class MysqlDriver {
    */
   async markJobAsFailed(jobUuid) {
     const timestamp = this.#getCurrentTimestamp();
+    console.log('-- markJobAsFailed');
     await this.#run('UPDATE jobs SET failed_at = ?, reserved_at = NULL WHERE uuid = ?', [timestamp, jobUuid]);
   }
 
@@ -230,6 +290,7 @@ class MysqlDriver {
    * @returns {Promise<void>}
    */
   async deleteAllJobs() {
+    console.log('-- deleteAllJobs');
     await this.#run('DELETE FROM jobs');
   }
 
@@ -248,10 +309,23 @@ class MysqlDriver {
   async getAllJobsByQueue(queue) {
     const query = 'SELECT * FROM jobs WHERE queue = ?';
 
+    console.log('-- getAllJobsByQueue');
+    return this.#run(query, [queue]);
+  }
+
+  /**
+   * @param {string} queue
+   * @returns {Promise<module:types.Job|null>}
+   */
+  async getFinishedJobsByQueue(queue) {
+    const query = 'SELECT * FROM finished_jobs WHERE queue = ?';
+
+    console.log('-- getFinishedJobsByQueue');
     return this.#run(query, [queue]);
   }
 
   async enqueueAllReservedJobs(queue) {
+    console.log('-- enqueueAllReservedJobs');
     return await this.#run(`UPDATE jobs SET reserved_at = NULL, failed_at = NULL WHERE queue = "${queue}" AND reserved_at IS NOT NULL AND reserved_at < UNIX_TIMESTAMP()`);
   }
 }

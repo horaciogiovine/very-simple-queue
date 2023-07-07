@@ -48,7 +48,15 @@ class QueueClient {
 
       try {
         const result = await jobHandler(job.payload);
-        await this.#dbDriver.deleteJob(job.uuid);
+
+        console.log('--- handleJob: ', job);
+        job.completed_at = this.#getCurrentTimestamp();
+
+        await Promise.all([
+          this.#dbDriver.storeFinishedJob(job),
+          this.#dbDriver.deleteJob(job.uuid)
+        ]);
+
         return result;
       } catch (error) {
         await this.#dbDriver.markJobAsFailed(job.uuid);
@@ -126,6 +134,24 @@ class QueueClient {
   }
 
   /**
+ * @param {module:types.JobHandler} jobHandler
+ * @param {string} jobUuid
+ * @param {boolean} [throwErrorOnFailure=false] -
+ * If a job fails, mark it failed and then throw an error
+ * @returns {Promise<*>}
+ */
+  async handleFinishedJobByUuid(jobHandler, jobUuid, throwErrorOnFailure = false) {
+    const job = await Promise.all([
+      this.#dbDriver.getFinishedJobByUuid(jobUuid),
+      this.#dbDriver.removeFinishedJobByUuid(jobUuid)
+    ])[0];
+
+    console.log('-- handleFinishedJobByUuid: ', job);
+
+    return this.pushJob(job, job.queue);
+  }
+
+  /**
    * @param {module:types.JobHandler} jobHandler
    * @param {string} queue
    * @param {boolean} [throwErrorOnFailure=false] -
@@ -173,6 +199,12 @@ class QueueClient {
   /************** custom code */
   async getAllJobsByQueue(queue = 'default') {
     const jobs = await this.#dbDriver.getAllJobsByQueue(queue);
+
+    return jobs;
+  }
+
+  async getFinishedJobsByQueue(queue = 'default') {
+    const jobs = await this.#dbDriver.getFinishedJobsByQueue(queue);
 
     return jobs;
   }
