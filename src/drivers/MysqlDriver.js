@@ -1,37 +1,29 @@
 const uuidGenerator = require('uuid').v4;
 
 /**
+ * MysqlDriver class for managing jobs using MySQL.
  * @class
  * @implements Driver
  */
 class MysqlDriver {
-  #parseJobResult
-
-  #getNewConnection
-
-  #run
-
-  #runWithConnection
-
-  #parseQueryResults
-
-  #reserveJob
-
-  /** @type module:helpers.getCurrentTimestamp */
-  #getCurrentTimestamp
+  #parseJobResult;
+  #getNewConnection;
+  #run;
+  #runListQuery;
+  #runWithConnection;
+  #parseQueryResults;
+  #reserveJob;
+  #getCurrentTimestamp;
 
   /**
-   * @param {module:helpers.getCurrentTimestamp} getCurrentTimestamp
-   * @param {Object} mysql
-   * @param {Object} driverConfig
+   * Creates an instance of MysqlDriver.
+   * @param {module:helpers.getCurrentTimestamp} getCurrentTimestamp - Function to get the current timestamp.
+   * @param {Object} mysql - MySQL module.
+   * @param {Object} driverConfig - Configuration for the MySQL driver.
    */
   constructor(getCurrentTimestamp, mysql, driverConfig) {
     this.#getCurrentTimestamp = getCurrentTimestamp;
 
-    /**
-     * @param {Object} result
-     * @returns {module:types.Job|null}
-     */
     this.#parseJobResult = (result) => {
       if (!result) {
         return null;
@@ -43,15 +35,8 @@ class MysqlDriver {
       return job;
     };
 
-    /**
-     * @returns {Promise<Object>}
-     */
     this.#getNewConnection = async () => mysql.createConnection(driverConfig);
 
-    /**
-     * @param {Array|null} results
-     * @returns {*|null}
-     */
     this.#parseQueryResults = (results) => {
       if (!results) {
         return null;
@@ -66,46 +51,54 @@ class MysqlDriver {
       }
 
       return results[0];
-    }
+    };
 
-    /**
-     * @param {string} query
-     * @param {Array} [params=[]]
-     * @returns {Promise<void>}
-     */
-    this.#run = async (query, params = []) => {
+    this._parseListQueryResult = (result) => {
+      const resultSet = result[0];
+
+      if (Array.isArray(resultSet)) {
+        return resultSet;
+      } else if (typeof resultSet === 'object' && resultSet !== null) {
+        if (Array.isArray(resultSet.rows)) {
+          return resultSet.rows;
+        } else {
+          return [resultSet];
+        }
+      } else {
+        return [];
+      }
+    };
+
+    this.#runListQuery = async (query, params = []) => {
       const connection = await this.#getNewConnection();
-
-      console.log('--------: ', params, query);
       const results = params.length === 0
-        ? await connection.query(query) : await connection.execute(query, params);
+        ? await connection.query(query)
+        : await connection.execute(query, params);
 
-      // console.log('-- connection.query: ', results)
       await connection.end();
-      console.log('--- before parse results: ', params, query, results);
-      const result = this.#parseQueryResults(results);
-      console.log('--- after parse results: ', params, query, result);
+      const result = this._parseListQueryResult(results);
       return result;
     };
 
-    /**
-     * @param {Object} connection
-     * @param {string} query
-     * @param {Array} [params=[]]
-     * @returns {Promise<void>}
-     */
+    this.#run = async (query, params = []) => {
+      const connection = await this.#getNewConnection();
+      const results = params.length === 0
+        ? await connection.query(query)
+        : await connection.execute(query, params);
+
+      await connection.end();
+      const result = this.#parseQueryResults(results);
+      return result;
+    };
+
     this.#runWithConnection = async (connection, query, params = []) => {
       const results = params.length === 0
-        ? await connection.query(query) : await connection.execute(query, params);
+        ? await connection.query(query)
+        : await connection.execute(query, params);
 
       return this.#parseQueryResults(results);
     };
 
-    /**
-     * @param {string} selectQuery
-     * @param {Array} params
-     * @returns {Promise<module:types.Job|null>}
-     */
     this.#reserveJob = async (selectQuery, params) => {
       const connection = await this.#getNewConnection();
       try {
@@ -114,7 +107,7 @@ class MysqlDriver {
 
         if (!rawJob) {
           await this.#runWithConnection(connection, 'COMMIT', []);
-          await connection.end()
+          await connection.end();
           return null;
         }
 
@@ -122,84 +115,98 @@ class MysqlDriver {
         const timestamp = this.#getCurrentTimestamp();
         await this.#runWithConnection(connection, `UPDATE jobs SET reserved_at = ${timestamp} WHERE uuid = "${job.uuid}"`, []);
         await this.#runWithConnection(connection, 'COMMIT', []);
-        await connection.end()
+        await connection.end();
         return job;
       } catch (error) {
         await this.#runWithConnection(connection, 'ROLLBACK', []);
-        await connection.end()
+        await connection.end();
         return null;
       }
     };
   }
 
-  /**
-   * @returns {Promise<void>}
-   */
   async createJobsDbStructure() {
-    const query = 'CREATE TABLE IF NOT EXISTS jobs('
+    const queryJobs = 'CREATE TABLE IF NOT EXISTS jobs('
       + 'uuid CHAR(36) PRIMARY KEY,'
       + 'queue TEXT NOT NULL,'
       + 'payload TEXT NOT NULL,'
       + 'created_at INTEGER UNSIGNED NOT NULL,'
       + 'reserved_at INTEGER UNSIGNED NULL,'
-      + 'failed_at INTEGER UNSIGNED NULL'
-      + ')';
+      + 'failed_at INTEGER UNSIGNED NULL,'
+      + 'completed_at INT(10) UNSIGNED NULL,'
+      + 'domain VARCHAR(255) NOT NULL,' // New column: domain
+      + 'cache_time INT NULL,' // New column: cache_time
+      + 'cached_at INTEGER UNSIGNED NULL,' // New column: cached_at
+      + 'is_cached TINYINT(1) NULL,' // New column: is_cached
+      + 'http_status INT NULL,' // New column: http_status
+      + 'KEY idx_payload (payload(255))'
+      + ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
 
-    await this.#run(query);
+    await this.#run(queryJobs);
 
-    const createFinishedJobsTableSQL = 'CREATE TABLE IF NOT EXISTS finished_jobs(' +
-      'uuid CHAR(36) NOT NULL,' +
-      'queue TEXT NOT NULL,' +
-      'payload TEXT NOT NULL,' +
-      'created_at INT(10) UNSIGNED NOT NULL,' +
-      'reserved_at INT(10) UNSIGNED NULL,' +
-      'failed_at INT(10) UNSIGNED NULL,' +
-      'completed_at INT(10) UNSIGNED NULL,' +
-      'PRIMARY KEY (uuid),' +
-      'KEY idx_payload (payload(255))' +
-      ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
+    const queryHistorical = 'CREATE TABLE IF NOT EXISTS historical_jobs('
+      + 'uuid CHAR(36) PRIMARY KEY,'
+      + 'queue TEXT NOT NULL,'
+      + 'payload TEXT NOT NULL,'
+      + 'created_at INTEGER UNSIGNED NOT NULL,'
+      + 'completed_at INT(10) UNSIGNED NULL,'
+      + 'domain VARCHAR(255) NOT NULL,' // New column: domain
+      + 'cache_time INT NULL,' // New column: cache_time
+      + 'cached_at INTEGER UNSIGNED NULL,' // New column: cached_at
+      + 'is_cached TINYINT(1) NULL,' // New column: is_cached
+      + 'http_status INT NULL,' // New column: http_status
+      + 'KEY idx_payload (payload(255))'
+      + ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
 
-    await this.#run(createFinishedJobsTableSQL);
+    await this.#run(queryHistorical);
   }
 
   /**
-   * @param {module:types.Job} job
+   * Stores a job in the jobs table.
+   * @param {module:types.Job} job - The job to store.
    * @returns {Promise<void>}
    */
   async storeJob(job) {
-    const query = 'INSERT INTO jobs(uuid, queue, payload, created_at) VALUES (?, ?, ?, ?)';
-
-    console.log('-- storeJob');
+    const query = 'INSERT INTO jobs(uuid, queue, payload, created_at, domain, cache_time, cached_at, is_cached, http_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
     await this.#run(query, [
       job.uuid,
       job.queue,
       JSON.stringify(job.payload),
       job.created_at,
+      job.domain, // Add the domain column value
+      job.cache_time, // Add the cache_time column value
+      job.cached_at, // Add the cached_at column value
+      job.is_cached, // Add the is_cached column value
+      job.http_status // Add the http_status column value
     ]);
   }
 
   /**
- * @param {module:types.Job} job
- * @returns {Promise<void>}
- */
+   * Stores a finished job in the jobs table.
+   * @param {module:types.Job} job - The finished job to store.
+   * @returns {Promise<void>}
+   */
   async storeFinishedJob(job) {
-    const query = 'INSERT INTO finished_jobs(uuid, queue, payload, created_at, reserved_at, failed_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?)';
-
-    console.log('-- storeFinishedJob');
+    // console.log('--storeFinishedJob: ', job);
+    const query = 'INSERT INTO historical_jobs(uuid, queue, payload, created_at, completed_at, domain, cache_time, cached_at, is_cached, http_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     await this.#run(query, [
       uuidGenerator(),
       job.queue,
       JSON.stringify(job.payload),
       job.created_at,
-      job.reserved_at,
-      job.failed_at,
       job.completed_at,
+      job.domain, // Add the domain column value
+      job.cache_time, // Add the cache_time column value
+      job.cached_at, // Add the cached_at column value
+      job.is_cached, // Add the is_cached column value
+      job.http_status // Add the http_status column value
     ]);
   }
 
   /**
-   * @param {string} queue
-   * @returns {Promise<module:types.Job|null>}
+   * Retrieves the next available job from the specified queue.
+   * @param {string} queue - The queue from which to get the job.
+   * @returns {Promise<module:types.Job|null>} - A promise resolving to the next available job, or null if none is available.
    */
   async getJob(queue) {
     const query = 'SELECT * FROM jobs WHERE queue = ? AND failed_at IS NULL AND reserved_at IS NULL ORDER BY created_at DESC LIMIT 1';
@@ -207,126 +214,120 @@ class MysqlDriver {
   }
 
   /**
-   * @param {string} jobUuid
-   * @returns {Promise<module:types.Job|null>}
+   * Retrieves a job with the specified UUID.
+   * @param {string} jobUuid - The UUID of the job.
+   * @returns {Promise<module:types.Job|null>} - A promise resolving to the job with the specified UUID, or null if not found.
    */
   async getJobByUuid(jobUuid) {
-    const query = 'SELECT * FROM jobs WHERE uuid = ? AND reserved_at IS NULL LIMIT 1';
-
-    return this.#reserveJob(query, [jobUuid]);
+    const query = 'SELECT * FROM jobs WHERE uuid = ? LIMIT 1';
+    return this.#run(query, [jobUuid]);
   }
 
   /**
-   * @param {string} jobUuid
-   * @returns {Promise<module:types.Job|null>}
+   * Updates the specified job with the provided values.
+   * @param {Object} updateOptions - The options to update the job (created_at, reserved_at, failed_at, uuid).
+   * @returns {Promise<module:types.Job|null>} - A promise resolving to the updated job, or null if not found.
    */
-  async getFinishedJobByUuid(jobUuid) {
-    const query = 'SELECT * FROM finished_jobs WHERE uuid = ? LIMIT 1';
-
-    return this.#reserveJob(query, [jobUuid]);
+  updateJobByUuid({
+    created_at = null,
+    reserved_at = null,
+    failed_at = null,
+    uuid,
+    domain = null,
+    cache_time = null,
+    cached_at = null,
+    is_cached = null,
+    http_status = null
+  }) {
+    const query = 'UPDATE jobs SET created_at = ?, reserved_at = ?, failed_at = ?, domain = ?, cache_time = ?, cached_at = ?, is_cached = ?, http_status = ? WHERE uuid = ?';
+    return this.#run(query, [created_at, reserved_at, failed_at, domain, cache_time, cached_at, is_cached, http_status, uuid]);
   }
 
   /**
-   * @param {string} jobUuid
-   * @returns {Promise<module:types.Job|null>}
-   */
-  async updateJobByUuid({ created_at = null, reserved_at = null, failed_at = null, uuid }) {
-    const query = 'UPDATE jobs SET created_at = ?, reserved_at = ?, failed_at = ? WHERE uuid = ?';
-
-    console.log('-- updateJobByUuid');
-    return this.#run(query, [created_at, reserved_at, failed_at, uuid]);
-  }
-
-  /**
-   * @param {string} jobPayload
-   * @returns {Promise<module:types.Job|null>}
+   * Retrieves a job with the specified payload.
+   * @param {string} jobPayload - The payload of the job.
+   * @returns {Promise<module:types.Job|null>} - A promise resolving to the job with the specified payload, or null if not found.
    */
   async getJobByPayload(jobPayload) {
     const query = 'SELECT * FROM jobs WHERE payload = ?';
-
-    console.log('-- getJobByPayload');
     return this.#run(query, [jobPayload]);
   }
 
   /**
-   * @param {string} queue
-   * @returns {Promise<module:types.Job|null>}
+   * Retrieves the next available failed job from the specified queue.
+   * @param {string} queue - The queue from which to get the failed job.
+   * @returns {Promise<module:types.Job|null>} - A promise resolving to the next available failed job, or null if none is available.
    */
   async getFailedJob(queue) {
-    const query = 'SELECT * FROM jobs WHERE queue = ? AND failed_at IS NOT NULL AND reserved_at IS NULL LIMIT 1';
-
+    const query = 'SELECT * FROM jobs WHERE queue = ? AND failed_at IS NOT NULL LIMIT 1';
     return this.#reserveJob(query, [queue]);
   }
 
   /**
-   * @param {string} jobUuid
+   * Deletes a job with the specified UUID.
+   * @param {string} jobUuid - The UUID of the job to delete.
    * @returns {Promise<void>}
    */
   async deleteJob(jobUuid) {
-    console.log('-- deleteJob');
     await this.#run('DELETE FROM jobs WHERE reserved_at IS NOT NULL AND uuid = ?', [jobUuid]);
   }
 
   /**
-   * @param {string} jobUuid
+   * Marks a job with the specified UUID as failed.
+   * @param {string} jobUuid - The UUID of the job to mark as failed.
    * @returns {Promise<void>}
    */
-  async removeFinishedJobByUuid(jobUuid) {
-    console.log('-- removeFinishedJobByUuid');
-    await this.#run('DELETE FROM finished_jobs WHERE uuid = ?', [jobUuid]);
-  }
-
-  /**
-   * @param {string} jobUuid
-   * @returns {Promise<void>}
-   */
-  async markJobAsFailed(jobUuid) {
+  async markJobAsFailed(jobUuid, status) {
     const timestamp = this.#getCurrentTimestamp();
-    console.log('-- markJobAsFailed');
-    await this.#run('UPDATE jobs SET failed_at = ?, reserved_at = NULL WHERE uuid = ?', [timestamp, jobUuid]);
+    await this.#run('UPDATE jobs SET failed_at = ?, reserved_at = NULL, http_status = ?, is_cached = false WHERE uuid = ?', [timestamp, status, jobUuid]);
   }
 
   /**
+   * Deletes all jobs.
    * @returns {Promise<void>}
    */
   async deleteAllJobs() {
-    console.log('-- deleteAllJobs');
-    await this.#run('DELETE FROM jobs');
+    await this.#run('DELETE * FROM jobs');
   }
 
   /**
+   * Closes the database connection.
    * @returns {Promise<void>}
    */
   async closeConnection() {
+    // Add code to close the database connection here
   }
 
-  /************ custom code */
+  /************ Custom Methods **************/
 
   /**
-   * @param {string} queue
-   * @returns {Promise<module:types.Job|null>}
+   * Retrieves all jobs in the specified queue.
+   * @param {string} queue - The name of the queue.
+   * @returns {Promise<Array>} - A promise resolving to an array of jobs.
    */
   async getAllJobsByQueue(queue) {
-    const query = 'SELECT * FROM jobs WHERE queue = ?';
-
-    console.log('-- getAllJobsByQueue');
-    return this.#run(query, [queue]);
+    const query = 'SELECT * FROM jobs WHERE queue = ? AND completed_at IS NULL';
+    return this.#runListQuery(query, [queue]);
   }
 
   /**
-   * @param {string} queue
-   * @returns {Promise<module:types.Job|null>}
+   * Retrieves all finished jobs in the specified queue.
+   * @param {string} queue - The name of the queue.
+   * @returns {Promise<Array>} - A promise resolving to an array of finished jobs.
    */
   async getFinishedJobsByQueue(queue) {
-    const query = 'SELECT * FROM finished_jobs WHERE queue = ?';
-
-    console.log('-- getFinishedJobsByQueue');
-    return this.#run(query, [queue]);
+    const query = 'SELECT * FROM historical_jobs WHERE queue = ? AND completed_at IS NOT NULL ORDER BY completed_at DESC';
+    return this.#runListQuery(query, [queue]);
   }
 
+  /**
+   * Enqueues all reserved jobs in the specified queue.
+   * @param {string} queue - The name of the queue.
+   * @returns {Promise<void>}
+   */
   async enqueueAllReservedJobs(queue) {
-    console.log('-- enqueueAllReservedJobs');
-    return await this.#run(`UPDATE jobs SET reserved_at = NULL, failed_at = NULL WHERE queue = "${queue}" AND reserved_at IS NOT NULL AND reserved_at < UNIX_TIMESTAMP()`);
+    const query = `UPDATE jobs SET reserved_at = NULL, failed_at = NULL WHERE queue = ? AND reserved_at IS NOT NULL AND reserved_at < UNIX_TIMESTAMP()`;
+    return await this.#run(query, [queue]);
   }
 }
 

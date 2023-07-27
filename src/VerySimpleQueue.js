@@ -13,34 +13,38 @@ const RedisDriver = require('./drivers/RedisDriver');
 const Worker = require('./Worker');
 
 /**
+ * VerySimpleQueue is a client for managing a simple job queue.
  * @class
  */
 class VerySimpleQueue {
   /** @type {string[]} */
-  #supportedDrivers
+  #supportedDrivers;
 
   /** @type {QueueClient} */
-  #queueClient
+  #queueClient;
 
   /**
-   * VerySimpleQueue client constructor
-   * @param {string} driverName - 'sqlite3' or 'redis'
-   * @param {module:types.Sqlite3DriverConfig | Object} driverConfig -
-   * Driver specific configuration. For redis see https://github.com/NodeRedis/node-redis#options-object-properties . For mysql see https://github.com/mysqljs/mysql#connection-options .
+   * Creates an instance of VerySimpleQueue.
+   * @param {string} driverName - The name of the driver ('sqlite3', 'redis', or 'mysql').
+   * @param {module:types.Sqlite3DriverConfig | Object} driverConfig - Driver-specific configuration.
+   * @throws {Error} If the specified driver is not supported.
    *
-   * @example <caption>Sqlite3 driver</caption>
+   * @example <caption>Create VerySimpleQueue with SQLite3 driver</caption>
    * new VerySimpleQueue('sqlite3', { filePath: '/tmp/db.sqlite3' });
-   * @example <caption>Redis driver</caption>
+   *
+   * @example <caption>Create VerySimpleQueue with Redis driver</caption>
    * new VerySimpleQueue('redis', {}); // Options: https://github.com/NodeRedis/node-redis#options-object-properties
-   * @example <caption>MySQL driver</caption>
+   *
+   * @example <caption>Create VerySimpleQueue with MySQL driver</caption>
    * new VerySimpleQueue('mysql', {
-   *      host: 'localhost',
-   *      user: 'root',
-   *      password: 'root',
-   *      database: 'queue',
-   *    }); // Options: https://github.com/mysqljs/mysql#connection-options
+   *    host: 'localhost',
+   *    user: 'root',
+   *    password: 'root',
+   *    database: 'queue',
+   *  }); // Options: https://github.com/mysqljs/mysql#connection-options
    */
   constructor(driverName, driverConfig) {
+    // console.log('-- VerySimpleQueue constructor');
     this.#supportedDrivers = ['sqlite3', 'redis', 'mysql'];
 
     if (!this.#supportedDrivers.includes(driverName)) {
@@ -58,7 +62,7 @@ class VerySimpleQueue {
         util.promisify,
         getCurrentTimestamp,
         sqlite3,
-        driverConfig,
+        driverConfig
       );
       this.#queueClient = new QueueClient(driver, uuidGenerator, getCurrentTimestamp, new Worker());
     };
@@ -68,7 +72,7 @@ class VerySimpleQueue {
         getCurrentTimestamp,
         redis,
         driverConfig,
-        RedLock,
+        RedLock
       );
 
       this.#queueClient = new QueueClient(driver, uuidGenerator, getCurrentTimestamp, new Worker());
@@ -78,7 +82,7 @@ class VerySimpleQueue {
       const driver = new MysqlDriver(
         getCurrentTimestamp,
         mysql,
-        driverConfig,
+        driverConfig
       );
 
       this.#queueClient = new QueueClient(driver, uuidGenerator, getCurrentTimestamp, new Worker());
@@ -88,8 +92,7 @@ class VerySimpleQueue {
   }
 
   /**
-   * Creates the jobs table for SQL drivers and does nothing for redis
-   *
+   * Creates the necessary database structure for jobs (applicable to SQL drivers).
    * @returns {Promise<void>}
    */
   async createJobsDbStructure() {
@@ -97,100 +100,89 @@ class VerySimpleQueue {
   }
 
   /**
-   * Push a new job to a queue
-   *
-   * @param {Object} payload - This the object that the handler is going to get
-   * when you try to handle the job
-   * @param {string} [queue=default] - Queue name
-   * @returns {Promise<string>} - A promise of the created job's uuid
+   * Pushes a new job to a queue.
+   * @param {Object} payload - The payload of the job.
+   * @param {string} [queue=default] - The name of the queue.
+   * @returns {Promise<string>} - A promise resolving to the UUID of the created job.
    *
    * @example
-   * const jobUuid = verySimpleQueue.pushJob({ sendEmailTo: 'foo@foo.com' }, 'emails-to-send');
+   * const jobUuid = await verySimpleQueue.pushJob({ sendEmailTo: 'foo@foo.com' }, 'emails-to-send');
    */
   async pushJob(payload, queue = 'default') {
     return this.#queueClient.pushJob(payload, queue);
   }
 
   /**
-   * Handle one job in the given queue.
-   * The job gets deleted if it doesn't fail, and is marked as failed if it does.
-   *
-   * @param {module:types.JobHandler} jobHandler - Function that will receive the payload
-   * and handle the job
-   * @param {string} [queue=default] - The queue from which to take the job
-   * @param {boolean} [throwErrorOnFailure=false] -
-   * If a job fails, mark it failed and then throw an error
-   * @returns {Promise<*>} - A promise of what the jobHandler returns
+   * Handles one job from the specified queue.
+   * @param {module:types.JobHandler} jobHandler - The function to handle the job.
+   * @param {string} [queue=default] - The name of the queue.
+   * @param {boolean} [throwErrorOnFailure=false] - If true, mark the job as failed and throw an error on failure.
+   * @returns {Promise<*>} - A promise resolving to the result of the job handler function.
    *
    * @example
-   * verySimpleQueue.handleJob((payload) => sendEmail(payload.email), 'emails-to-send');
+   * await verySimpleQueue.handleJob((payload) => sendEmail(payload.email), 'emails-to-send');
    */
   async handleJob(jobHandler, queue = 'default', throwErrorOnFailure = false) {
     return this.#queueClient.handleJob(jobHandler, queue, throwErrorOnFailure);
   }
 
   /**
-   * Handle a job by uuid
-   * Same as handleJob but here you know which job you want to handle
-   *
-   * @param {module:types.JobHandler} jobHandler - Function that will receive the payload
-   * and handle the job
-   * @param {string} jobUuid - The job uuid that you've got when you pushed the job
-   * @param {boolean} [throwErrorOnFailure=false] -
-   * If a job fails, mark it failed and then throw an error
-   * @returns {Promise<*>} - A promise of what the jobHandler returns
+   * Handles a job specified by its UUID.
+   * @param {module:types.JobHandler} jobHandler - The function to handle the job.
+   * @param {string} jobUuid - The UUID of the job.
+   * @param {boolean} [throwErrorOnFailure=false] - If true, mark the job as failed and throw an error on failure.
+   * @returns {Promise<*>} - A promise resolving to the result of the job handler function.
    *
    * @example
-   * verySimpleQueue.handleJobByUuid(
-   *  (payload) => sendEmail(payload.email),
-   *  'd5dfb2d6-b845-4e04-b669-7913bfcb2600'
+   * await verySimpleQueue.handleJobByUuid(
+   *   (payload) => sendEmail(payload.email),
+   *   'd5dfb2d6-b845-4e04-b669-7913bfcb2600'
    * );
    */
   async handleJobByUuid(jobHandler, jobUuid, throwErrorOnFailure = false) {
     return this.#queueClient.handleJobByUuid(jobHandler, jobUuid, throwErrorOnFailure);
   }
 
-    /**
-   * Handle a job by uuid
-   * Same as handleJob but here you know which job you want to handle
-   *
-   * @param {module:types.JobHandler} jobHandler - Function that will receive the payload
-   * and handle the job
-   * @param {string} jobUuid - The job uuid that you've got when you pushed the job
-   * @param {boolean} [throwErrorOnFailure=false] -
-   * If a job fails, mark it failed and then throw an error
-   * @returns {Promise<*>} - A promise of what the jobHandler returns
+  /**
+   * Enqueues a job specified by its UUID.
+   * @param {string} jobUuid - The UUID of the job.
+   * @returns {Promise<*>}
    *
    * @example
-   * verySimpleQueue.handleFinishedJobByUuid(
-   *  (payload) => sendEmail(payload.email),
-   *  'd5dfb2d6-b845-4e04-b669-7913bfcb2600'
-   * );
+   * await verySimpleQueue.enqueueJobByUuid('d5dfb2d6-b845-4e04-b669-7913bfcb2600');
    */
-    async handleFinishedJobByUuid(jobHandler, jobUuid, throwErrorOnFailure = false) {
-      return this.#queueClient.handleFinishedJobByUuid(jobHandler, jobUuid, throwErrorOnFailure);
-    }
+  async enqueueJobByUuid(jobUuid) {
+    return this.#queueClient.enqueueJobByUuid(jobUuid);
+  }
 
   /**
-   * Handle a job that failed on a given queue
-   *
-   * @param {module:types.JobHandler} jobHandler - Function that will receive the payload
-   * and handle the job
-   * @param {string} [queue=default] - The queue from which to take the failed job
-   * @param {boolean} [throwErrorOnFailure=false] -
-   * If a job fails, mark it failed and then throw an error
-   * @returns {Promise<*>} - A promise of what the jobHandler returns
+   * Handles a finished job specified by its UUID.
+   * @param {string} jobUuid - The UUID of the finished job.
+   * @returns {Promise<*>}
    *
    * @example
-   * verySimpleQueue.handleFailedJob((payload) => tryAgain(payload.email), 'emails-to-send');
+   * await verySimpleQueue.handleFinishedJobByUuid('d5dfb2d6-b845-4e04-b669-7913bfcb2600');
+   */
+  async handleFinishedJobByUuid(jobUuid) {
+    return this.#queueClient.handleFinishedJobByUuid(jobUuid);
+  }
+
+  /**
+   * Handles a failed job in the specified queue.
+   * @param {module:types.JobHandler} jobHandler - The function to handle the job.
+   * @param {string} [queue=default] - The name of the queue.
+   * @param {boolean} [throwErrorOnFailure=false] - If true, mark the job as failed and throw an error on failure.
+   * @returns {Promise<*>} - A promise resolving to the result of the job handler function.
+   *
+   * @example
+   * await verySimpleQueue.handleFailedJob((payload) => tryAgain(payload.email), 'emails-to-send');
    */
   async handleFailedJob(jobHandler, queue = 'default', throwErrorOnFailure = false) {
     return this.#queueClient.handleFailedJob(jobHandler, queue, throwErrorOnFailure);
   }
 
   /**
-   * Closes the connection to the database
-   *
+   * Closes the connection to the database.
    * @returns {Promise<void>}
    */
   async closeConnection() {
@@ -198,49 +190,74 @@ class VerySimpleQueue {
   }
 
   /**
-   * Worker function to continuously handle jobs on a queue
-   *
-   * @param {module:types.JobHandler} jobHandler
-   * @param {module:types.WorkerSettings} settings
+   * Starts the worker to process jobs.
+   * @param {module:types.JobHandler} jobHandler - The function to handle the jobs.
+   * @param {module:types.WorkerSettings} settings - The settings for the worker.
    * @returns {Promise<void>}
    *
    * @example
-   * verySimpleQueue.work(
-   *  (payload) => sendEmail(payload.email),
-   *  { queue: 'email-to-send' }
+   * await verySimpleQueue.work(
+   *   (payload) => sendEmail(payload.email),
+   *   { queue: 'email-to-send' }
    * );
    */
   async work(jobHandler, settings) {
+    // console.log('-- simple queue call to work');
     await this.#queueClient.work(jobHandler, settings);
   }
 
   /**
    * Signals the workers to stop working after they have finished with the current job.
-   *
    * @returns {void}
    */
   shutdown() {
     this.#queueClient.shutdown();
   }
 
-  /************** custom code */
+  /************** Custom Methods **************/
+
+  /**
+   * Retrieves all jobs in the specified queue.
+   * @param {string} [queue=default] - The name of the queue.
+   * @returns {Promise<Array>} - A promise resolving to an array of jobs.
+   */
   async getAllJobsByQueue(queue = 'default') {
     return this.#queueClient.getAllJobsByQueue(queue);
   }
 
+  /**
+   * Retrieves all finished jobs in the specified queue.
+   * @param {string} [queue=default] - The name of the queue.
+   * @returns {Promise<Array>} - A promise resolving to an array of finished jobs.
+   */
   async getFinishedJobsByQueue(queue = 'default') {
     return this.#queueClient.getFinishedJobsByQueue(queue);
   }
 
+  /**
+   * Enqueues all reserved jobs in the specified queue.
+   * @param {string} [queue=default] - The name of the queue.
+   * @returns {Promise<void>}
+   */
   async enqueueAllReservedJobs(queue = 'default') {
     return this.#queueClient.enqueueAllReservedJobs(queue);
   }
 
+  /**
+   * Checks if the workers should be shut down.
+   * @returns {boolean} - True if the workers should be shut down, false otherwise.
+   */
   shouldShutdown() {
     return this.#queueClient.shouldShutdown();
   }
 
+  /**
+   * Turns on the worker.
+   * @returns {void}
+   */
   turnOn() {
+    // console.log('-- main turn on, print stack');
+    // console.trace();
     return this.#queueClient.turnOn();
   }
 }

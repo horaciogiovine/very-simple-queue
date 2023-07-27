@@ -36,8 +36,11 @@ class Worker {
     const log = settings.loggerFunction;
     let jobQuantity = 0;
     // eslint-disable-next-line no-constant-condition
-
-    while (!queueClient.shouldShutdown()) {
+    // console.trace();
+    // console.log('--queueClient.getProcessingStatus(): ', queueClient.getProcessingStatus());
+    while (queueClient.getProcessingStatus()) {
+      // console.log('-- working... ', queueClient.getProcessingStatus());
+      // console.trace();
       jobQuantity += 1;
       try {
         const result = await queueClient.handleJob(jobHandler, settings.queue, true);
@@ -47,16 +50,13 @@ class Worker {
         }
       } catch (error) {
         if (settings.logErrors) {
-          log(JSON.stringify(error.message));
+          log('--work error: ', JSON.stringify(error.message));
         }
 
         if (settings.stopOnFailure) {
+          // console.log('-- stopping on failure');
           return;
         }
-      }
-
-      if (queueClient.shouldShutdown()) {
-        return;
       }
 
       if (settings.limit && settings.limit >= jobQuantity) {
@@ -66,6 +66,8 @@ class Worker {
 
       await this.#sleep(settings.restTimeInSeconds);
     }
+
+    // console.log('-- after work: queueClient.getProcessingStatus(): ', queueClient.getProcessingStatus());
   }
 }
 
