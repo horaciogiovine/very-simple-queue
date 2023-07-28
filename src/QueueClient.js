@@ -82,8 +82,10 @@ class QueueClient {
 
         return result;
       } catch (error) {
-        // console.log('--- handleJob error: ', error);
-        const http_status = error.response.status;
+        console.log('--- handleJob error: ', error, job);
+        error = this.parseAxiosError(error);
+
+        const http_status = error.response ? error.response.status : 500;
         await this.#dbDriver.markJobAsFailed(job.uuid, http_status);
 
         if (throwErrorOnFailure) {
@@ -94,6 +96,27 @@ class QueueClient {
       return null;
     };
   }
+
+  parseAxiosError(error) {
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.log(error.response.data);
+      console.log(error.response.status);
+      console.log(error.response.headers);
+      return error;
+    } else if (error.request) {
+      // The request was made but no response was received
+      // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+      // http.ClientRequest in node.js
+      console.log(error.request);
+      return error;
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.log('Error', error.message);
+      return error;
+    }
+  };
 
   /**
    * Creates the necessary database structure for jobs.
