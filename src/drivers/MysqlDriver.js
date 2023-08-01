@@ -224,6 +224,16 @@ class MysqlDriver {
   }
 
   /**
+   * Retrieves a finished job with the specified UUID.
+   * @param {string} jobUuid - The UUID of the job.
+   * @returns {Promise<module:types.Job|null>} - A promise resolving to the job with the specified UUID, or null if not found.
+   */
+  async getFinishedJobByUuid(jobUuid) {
+    const query = 'SELECT * FROM historical_jobs WHERE uuid = ? LIMIT 1';
+    return this.#run(query, [jobUuid]);
+  }
+
+  /**
    * Updates the specified job with the provided values.
    * @param {Object} updateOptions - The options to update the job (created_at, reserved_at, failed_at, uuid).
    * @returns {Promise<module:types.Job|null>} - A promise resolving to the updated job, or null if not found.
@@ -269,6 +279,15 @@ class MysqlDriver {
    * @returns {Promise<void>}
    */
   async deleteJob(jobUuid) {
+    await this.#run('DELETE FROM jobs WHERE reserved_at IS NOT NULL AND uuid = ?', [jobUuid]);
+  }
+
+  /**
+   * Deletes a job with the specified UUID.
+   * @param {string} jobUuid - The UUID of the job to delete.
+   * @returns {Promise<void>}
+   */
+  async deleteFinishedJob(jobUuid) {
     await this.#run('DELETE FROM jobs WHERE reserved_at IS NOT NULL AND uuid = ?', [jobUuid]);
   }
 

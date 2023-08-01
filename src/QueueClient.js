@@ -244,12 +244,10 @@ class QueueClient {
    * @returns {Promise<*>}
    */
   async handleFinishedJobByUuid(jobUuid) {
-    const [job, removedJob] = await Promise.all([
-      this.#dbDriver.getJobByUuid(jobUuid),
-      this.#dbDriver.removeFinishedJobByUuid(jobUuid)
-    ]);
+    // console.log('--: ', { jobUuid });
+    const job = await this.#dbDriver.getFinishedJobByUuid(jobUuid);
 
-    // console.log('-- handleFinishedJobByUuid: ', job, removedJob);
+    // console.log('-- handleFinishedJobByUuid: ', job);
 
     return this.pushJob(JSON.parse(job.payload), job.queue);
   }
