@@ -82,7 +82,6 @@ class QueueClient {
 
         return result;
       } catch (error) {
-        console.log('--- handleJob error: ', error, job);
         error = this.parseAxiosError(error);
 
         const http_status = error.response ? error.response.status : 500;
@@ -101,9 +100,9 @@ class QueueClient {
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
-      console.log(error.response.data);
+      // console.log(error.response.data);
       console.log(error.response.status);
-      console.log(error.response.headers);
+      // console.log(error.response.headers);
       return error;
     } else if (error.request) {
       // The request was made but no response was received
