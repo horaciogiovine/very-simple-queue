@@ -36,11 +36,9 @@ class Worker {
     const log = settings.loggerFunction;
     let jobQuantity = 0;
     // eslint-disable-next-line no-constant-condition
-    // console.trace();
     console.log('--queueClient.getProcessingStatus(): ', queueClient.getProcessingStatus());
     while (queueClient.getProcessingStatus()) {
       console.log('-- working... ', queueClient.getProcessingStatus());
-      // console.trace();
       jobQuantity += 1;
       try {
         const result = await queueClient.handleJob(jobHandler, settings.queue, true);
