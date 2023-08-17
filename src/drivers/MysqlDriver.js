@@ -159,6 +159,37 @@ class MysqlDriver {
       + ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
 
     await this.#run(queryHistorical);
+
+    const queryCrawlerHits = 'CREATE TABLE IF NOT EXISTS crawler_hits('
+      + 'uuid CHAR(36) PRIMARY KEY,'
+      + 'url VARCHAR(255) UNIQUE NOT NULL,'
+      + 'created_at DATETIME DEFAULT CURRENT_TIMESTAMP,'
+      + 'visited_at DATETIME DEFAULT CURRENT_TIMESTAMP,'
+      + 'bot VARCHAR(255),'
+      + 'http_status INT,'
+      + 'time_to_render INT,'
+      + 'cache_hit TINYINT(1),'
+      + 'KEY idx_url (url)'
+      + ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
+
+    await this.#run(queryCrawlerHits);
+  }
+
+  /**
+ * Stores a crawler hit in the crawler_hits table.
+ * @param {module:types.CrawlerHit} crawlerHit - The crawler hit to store.
+ * @returns {Promise<void>}
+ */
+  async storeCrawlerHit(crawlerHit) {
+    const query = 'INSERT INTO crawler_hits(uuid, url, bot, http_status, time_to_render, cache_hit) VALUES (?, ?, ?, ?, ?)';
+    await this.#run(query, [
+      crawlerHit.uuid,
+      crawlerHit.url,
+      crawlerHit.bot,
+      crawlerHit.http_status,
+      crawlerHit.time_to_render,
+      crawlerHit.cache_hit
+    ]);
   }
 
   /**

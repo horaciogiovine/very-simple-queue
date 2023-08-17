@@ -231,10 +231,28 @@ class QueueClient {
     job.is_cached = false;
     job.http_status = null;
 
-
-
     return await this.#dbDriver.updateJobByUuid(job);
   }
+
+  /**
+   * Enqueues a job specified by its UUID.
+   * 
+   * @returns {Promise<*>}
+   */
+    async storeCrawlerHit(theCrawlerHit) {
+      console.log('--- storeCrawlerHit: ', theCrawlerHit);
+
+      const crawlerHit = {
+        uuid: this.#uuidGenerator(),
+        url: theCrawlerHit.url,
+        bot: theCrawlerHit.bot,
+        http_status: theCrawlerHit.httpStatus,
+        time_to_render: theCrawlerHit.timeToRender,
+        cache_hit: theCrawlerHit.cacheHit
+      }
+
+      return await this.#dbDriver.storeCrawlerHit(crawlerHit);
+    }
 
   /**
    * Handles a finished job specified by its UUID.

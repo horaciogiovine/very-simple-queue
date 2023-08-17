@@ -113,6 +113,19 @@ class VerySimpleQueue {
   }
 
   /**
+   * Stores a page crawler hit
+   * @param {Object} payload - The payload of the crawler hit.
+   * @returns {Promise<string>} - A promise resolving to the UUID of the created job.
+   */
+  async storeCrawlerHit(payload) {
+    return this.#queueClient.storeCrawlerHit(payload);
+  }
+
+  // TODO: add endpoint in admin to store a crawler hit, call it from rendertron.
+  // in rendertron, i need to check the user agent of the request, if it matches a crawler then store, if not just serve
+  // use the list of crawlers in prerender middleware to detect if it matches
+
+  /**
    * Handles one job from the specified queue.
    * @param {module:types.JobHandler} jobHandler - The function to handle the job.
    * @param {string} [queue=default] - The name of the queue.
