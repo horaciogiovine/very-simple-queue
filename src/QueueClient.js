@@ -244,11 +244,11 @@ class QueueClient {
 
       const crawlerHit = {
         uuid: this.#uuidGenerator(),
-        url: theCrawlerHit.url,
-        bot: theCrawlerHit.bot,
-        http_status: theCrawlerHit.httpStatus,
-        time_to_render: theCrawlerHit.timeToRender,
-        cache_hit: theCrawlerHit.cacheHit
+        url: theCrawlerHit.url || '',
+        bot: theCrawlerHit.bot || '',
+        http_status: theCrawlerHit.httpStatus || 500,
+        time_to_render: theCrawlerHit.timeToRender || 0,
+        cache_hit: theCrawlerHit.cacheHit || false,
       }
 
       return await this.#dbDriver.storeCrawlerHit(crawlerHit);
