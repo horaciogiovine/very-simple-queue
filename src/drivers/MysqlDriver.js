@@ -160,17 +160,20 @@ class MysqlDriver {
 
     await this.#run(queryHistorical);
 
-    const queryCrawlerHits = 'CREATE TABLE IF NOT EXISTS crawler_hits('
-      + 'uuid CHAR(36) PRIMARY KEY,'
-      + 'url VARCHAR(255) UNIQUE NOT NULL,'
-      + 'created_at DATETIME DEFAULT CURRENT_TIMESTAMP,'
-      + 'visited_at DATETIME DEFAULT CURRENT_TIMESTAMP,'
-      + 'bot VARCHAR(255),'
-      + 'http_status INT,'
-      + 'time_to_render INT,'
-      + 'cache_hit TINYINT(1),'
-      + 'KEY idx_url (url)'
-      + ') ENGINE=InnoDB DEFAULT CHARSET=utf8;';
+    const queryCrawlerHits = `
+    CREATE TABLE IF NOT EXISTS crawler_hits (
+        uuid CHAR(36) PRIMARY KEY,
+        url VARCHAR(255) NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        visited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        bot VARCHAR(255),
+        http_status INT,
+        time_to_render INT,
+        cache_hit TINYINT(1),
+        KEY idx_url (uuid, url),
+        INDEX idx_single_url (url)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+`;
 
     await this.#run(queryCrawlerHits);
   }
