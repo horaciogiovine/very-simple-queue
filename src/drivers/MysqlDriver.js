@@ -181,6 +181,8 @@ class MysqlDriver {
  * @returns {Promise<void>}
  */
   async storeCrawlerHit(crawlerHit) {
+    console.log('--storeCrawlerHit driver: ', crawlerHit);
+
     const query = 'INSERT INTO crawler_hits(uuid, url, bot, http_status, time_to_render, cache_hit) VALUES (?, ?, ?, ?, ?, ?)';
     await this.#run(query, [
       crawlerHit.uuid,
