@@ -197,6 +197,18 @@ class MysqlDriver {
     ]);
   }
 
+  async getCrawlerHits(pageNumber, pageSize) {
+    const query = `
+      SELECT columns
+      FROM table
+      ORDER BY some_column
+      LIMIT ? OFFSET (? - 1) * ?;
+    `;
+    const params = [pageSize, pageNumber, pageSize];
+
+    await this.#run(query, params);
+  }
+
   /**
    * Stores a job in the jobs table.
    * @param {module:types.Job} job - The job to store.

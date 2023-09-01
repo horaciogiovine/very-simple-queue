@@ -254,6 +254,12 @@ class QueueClient {
       return await this.#dbDriver.storeCrawlerHit(crawlerHit);
     }
 
+    async getCrawlerHits(pageNumber, pageSize) {
+      console.log('--- getCrawlerHits: ', pageNumber, pageSize);
+
+      return await this.#dbDriver.getCrawlerHits(pageNumber, pageSize);
+    }
+
   /**
    * Handles a finished job specified by its UUID.
    *

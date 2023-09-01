@@ -121,9 +121,16 @@ class VerySimpleQueue {
     return this.#queueClient.storeCrawlerHit(payload);
   }
 
-  // TODO: add endpoint in admin to store a crawler hit, call it from rendertron.
-  // in rendertron, i need to check the user agent of the request, if it matches a crawler then store, if not just serve
-  // use the list of crawlers in prerender middleware to detect if it matches
+  /**
+ * Retrieves crawler hits.
+ *
+ * @param {number} pageNumber - The page number to retrieve.
+ * @param {number} pageSize - The number of items per page.
+ * @returns {Promise<Array>} A promise resolving to an array of crawler hits.
+ */
+  async getCrawlerHits(pageNumber, pageSize) {
+    return this.#queueClient.getCrawlerHits(pageNumber, pageSize);
+  }
 
   /**
    * Handles one job from the specified queue.
