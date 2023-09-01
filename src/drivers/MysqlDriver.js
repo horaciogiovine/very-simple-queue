@@ -184,8 +184,6 @@ class MysqlDriver {
  * @returns {Promise<void>}
  */
   async storeCrawlerHit(crawlerHit) {
-    console.log('--storeCrawlerHit driver: ', crawlerHit);
-
     const query = 'INSERT INTO crawler_hits(uuid, url, bot, http_status, time_to_render, cache_hit) VALUES (?, ?, ?, ?, ?, ?)';
     return this.#run(query, [
       crawlerHit.uuid,
@@ -232,7 +230,6 @@ class MysqlDriver {
    * @returns {Promise<void>}
    */
   async storeFinishedJob(job) {
-    // console.log('--storeFinishedJob: ', job);
     const query = 'INSERT INTO historical_jobs(uuid, queue, payload, created_at, completed_at, domain, cache_time, cached_at, is_cached, http_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     return this.#run(query, [
       uuidGenerator(),

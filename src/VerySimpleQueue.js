@@ -44,7 +44,6 @@ class VerySimpleQueue {
    *  }); // Options: https://github.com/mysqljs/mysql#connection-options
    */
   constructor(driverName, driverConfig) {
-    // console.log('-- VerySimpleQueue constructor');
     this.#supportedDrivers = ['sqlite3', 'redis', 'mysql'];
 
     if (!this.#supportedDrivers.includes(driverName)) {
@@ -222,7 +221,6 @@ class VerySimpleQueue {
    * );
    */
   async work(jobHandler, settings) {
-    // console.log('-- simple queue call to work');
     await this.#queueClient.work(jobHandler, settings);
   }
 
@@ -276,8 +274,6 @@ class VerySimpleQueue {
    * @returns {void}
    */
   turnOn() {
-    // console.log('-- main turn on, print stack');
-    // console.trace();
     return this.#queueClient.turnOn();
   }
 }

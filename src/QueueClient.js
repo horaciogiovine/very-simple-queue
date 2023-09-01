@@ -44,7 +44,6 @@ class QueueClient {
     this.#getCurrentTimestamp = getCurrentTimestamp;
     this.#worker = worker;
 
-    // console.log('--setting should process');
     this.shouldProcess = true;
 
     /**
@@ -63,18 +62,12 @@ class QueueClient {
       }
 
       try {
-        // console.log('---------before jobHandler');
         const result = await jobHandler(job.payload);
 
-        // console.log('--- handleJob: ', job);
         job.completed_at = this.#getCurrentTimestamp();
-        // job.reserved_at
-        // job.cache_time
-        // job.cached_at
         job.is_cached = true;
         job.http_status = result.status;
 
-        // console.log('--#handleJob result: ', result);
         await Promise.all([
           this.#dbDriver.storeFinishedJob(job),
           this.#dbDriver.deleteJob(job.uuid)
@@ -100,9 +93,6 @@ class QueueClient {
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
-      // console.log(error.response.data);
-      console.log(error.response.status);
-      // console.log(error.response.headers);
       return error;
     } else if (error.request) {
       // The request was made but no response was received
@@ -155,7 +145,6 @@ class QueueClient {
    */
   async pushJob(payload, queue = 'default') {
 
-    // console.log('--pushjob: domain: ', payload);
     const job = {
       uuid: this.#uuidGenerator(),
       queue,
@@ -173,7 +162,6 @@ class QueueClient {
     let existingJob = [await this.#dbDriver.getJobByPayload(payload)].flat();
 
     if (!existingJob.length) {
-      // console.log('-- new job to insert: ', job);
       await this.#dbDriver.storeJob(job);
     } else {
       // Effectively moving a job to the top of the queue
@@ -222,7 +210,6 @@ class QueueClient {
    */
   async enqueueJobByUuid(jobUuid) {
     const job = await this.#dbDriver.getJobByUuid(jobUuid);
-    // console.log('--- enqueueJobByUuid: ', job);
     job.failed_at = null;
     job.reserved_at = null;
     job.created_at = this.#getCurrentTimestamp();
@@ -240,8 +227,6 @@ class QueueClient {
    * @returns {Promise<*>}
    */
     async storeCrawlerHit(theCrawlerHit) {
-      console.log('--- storeCrawlerHit: ', theCrawlerHit);
-
       const crawlerHit = {
         uuid: this.#uuidGenerator(),
         url: theCrawlerHit.url || '',
@@ -255,8 +240,6 @@ class QueueClient {
     }
 
     async getCrawlerHits(pageNumber, pageSize) {
-      console.log('--- getCrawlerHits: ', pageNumber, pageSize);
-
       return this.#dbDriver.getCrawlerHits(pageNumber, pageSize);
     }
 
@@ -267,10 +250,7 @@ class QueueClient {
    * @returns {Promise<*>}
    */
   async handleFinishedJobByUuid(jobUuid) {
-    // console.log('--: ', { jobUuid });
     const job = await this.#dbDriver.getFinishedJobByUuid(jobUuid);
-
-    // console.log('-- handleFinishedJobByUuid: ', job);
 
     return this.pushJob(JSON.parse(job.payload), job.queue);
   }
@@ -306,7 +286,6 @@ class QueueClient {
    * @returns {Promise<void>}
    */
   async work(jobHandler, settings) {
-    // console.log('-- queue client call to work');
     await this.#worker.work(this, jobHandler, settings);
   }
 
@@ -370,23 +349,18 @@ class QueueClient {
    * @returns {void}
    */
   turnOn() {
-    // console.log('-- turning on');
     this.enableProcessing();
   }
 
   disableProcessing() {
-    // console.log('--disableProcessing');
     this.shouldProcess = false;
   }
 
   enableProcessing() {
-    // console.log('--enableProcessing');
     this.shouldProcess = true;
   }
 
   getProcessingStatus() {
-    // console.trace();
-    // console.log('--getProcessingStatus: ', this.shouldProcess);
     return this.shouldProcess;
   }
 }
