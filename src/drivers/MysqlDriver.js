@@ -187,7 +187,7 @@ class MysqlDriver {
     console.log('--storeCrawlerHit driver: ', crawlerHit);
 
     const query = 'INSERT INTO crawler_hits(uuid, url, bot, http_status, time_to_render, cache_hit) VALUES (?, ?, ?, ?, ?, ?)';
-    await this.#run(query, [
+    return this.#run(query, [
       crawlerHit.uuid,
       crawlerHit.url,
       crawlerHit.bot,
@@ -203,7 +203,7 @@ class MysqlDriver {
     const query = `SELECT * FROM crawler_hits ORDER BY created_at DESC LIMIT ? OFFSET ?`;
     const params = [pageSize, offset];
 
-    await this.#runListQuery(query, params);
+    return this.#runListQuery(query, params);
   }
 
   /**
@@ -213,7 +213,7 @@ class MysqlDriver {
    */
   async storeJob(job) {
     const query = 'INSERT INTO jobs(uuid, queue, payload, created_at, domain, cache_time, cached_at, is_cached, http_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
-    await this.#run(query, [
+    return this.#run(query, [
       job.uuid,
       job.queue,
       JSON.stringify(job.payload),
@@ -234,7 +234,7 @@ class MysqlDriver {
   async storeFinishedJob(job) {
     // console.log('--storeFinishedJob: ', job);
     const query = 'INSERT INTO historical_jobs(uuid, queue, payload, created_at, completed_at, domain, cache_time, cached_at, is_cached, http_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-    await this.#run(query, [
+    return this.#run(query, [
       uuidGenerator(),
       job.queue,
       JSON.stringify(job.payload),
@@ -324,7 +324,7 @@ class MysqlDriver {
    * @returns {Promise<void>}
    */
   async deleteJob(jobUuid) {
-    await this.#run('DELETE FROM jobs WHERE reserved_at IS NOT NULL AND uuid = ?', [jobUuid]);
+    return this.#run('DELETE FROM jobs WHERE reserved_at IS NOT NULL AND uuid = ?', [jobUuid]);
   }
 
   /**
@@ -333,7 +333,7 @@ class MysqlDriver {
    * @returns {Promise<void>}
    */
   async deleteFinishedJob(jobUuid) {
-    await this.#run('DELETE FROM jobs WHERE reserved_at IS NOT NULL AND uuid = ?', [jobUuid]);
+    return this.#run('DELETE FROM jobs WHERE reserved_at IS NOT NULL AND uuid = ?', [jobUuid]);
   }
 
   /**
@@ -343,7 +343,7 @@ class MysqlDriver {
    */
   async markJobAsFailed(jobUuid, status) {
     const timestamp = this.#getCurrentTimestamp();
-    await this.#run('UPDATE jobs SET failed_at = ?, reserved_at = NULL, http_status = ?, is_cached = false WHERE uuid = ?', [timestamp, status, jobUuid]);
+    return this.#run('UPDATE jobs SET failed_at = ?, reserved_at = NULL, http_status = ?, is_cached = false WHERE uuid = ?', [timestamp, status, jobUuid]);
   }
 
   /**
@@ -351,7 +351,7 @@ class MysqlDriver {
    * @returns {Promise<void>}
    */
   async deleteAllJobs() {
-    await this.#run('DELETE * FROM jobs');
+    return this.#run('DELETE * FROM jobs');
   }
 
   /**
@@ -391,7 +391,7 @@ class MysqlDriver {
    */
   async enqueueAllReservedJobs(queue) {
     const query = `UPDATE jobs SET reserved_at = NULL, failed_at = NULL WHERE queue = ? AND reserved_at IS NOT NULL AND reserved_at < UNIX_TIMESTAMP()`;
-    return await this.#run(query, [queue]);
+    return this.#run(query, [queue]);
   }
 }
 
