@@ -257,7 +257,7 @@ class QueueClient {
     async getCrawlerHits(pageNumber, pageSize) {
       console.log('--- getCrawlerHits: ', pageNumber, pageSize);
 
-      return await this.#dbDriver.getCrawlerHits(pageNumber, pageSize);
+      return this.#dbDriver.getCrawlerHits(pageNumber, pageSize);
     }
 
   /**
