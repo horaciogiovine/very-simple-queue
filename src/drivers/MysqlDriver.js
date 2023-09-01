@@ -203,7 +203,7 @@ class MysqlDriver {
     const query = `SELECT * FROM crawler_hits ORDER BY created_at DESC LIMIT ? OFFSET ?`;
     const params = [pageSize, offset];
 
-    await this.#run(query, params);
+    await this.runListQuery(query, params);
   }
 
   /**
