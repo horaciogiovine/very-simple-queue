@@ -198,12 +198,7 @@ class MysqlDriver {
   }
 
   async getCrawlerHits(pageNumber, pageSize) {
-    const query = `
-      SELECT columns
-      FROM table
-      ORDER BY some_column
-      LIMIT ? OFFSET (? - 1) * ?;
-    `;
+    const query = `SELECT * FROM crawler_hits ORDER BY created_at DESC LIMIT ? OFFSET (? - 1) * ?`;
     const params = [pageSize, pageNumber, pageSize];
 
     await this.#run(query, params);
