@@ -111,6 +111,10 @@ class VerySimpleQueue {
     return this.#queueClient.pushJob(payload, queue);
   }
 
+  async pushBulkJob(payload = [], queue = 'default') {
+    return this.#queueClient.pushBulkJob(payload, queue);
+  }
+
   /**
    * Stores a page crawler hit
    * @param {Object} payload - The payload of the crawler hit.

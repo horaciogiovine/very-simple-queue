@@ -224,6 +224,16 @@ class MysqlDriver {
     ]);
   }
 
+  async storeBulkJob(values) {
+    // Combine all the value sets into a single INSERT statement
+    const insertStatement = `
+      INSERT INTO jobs(uuid, queue, payload, created_at, domain, cache_time, cached_at, is_cached, http_status)
+      VALUES ${values.join(', ')}
+    `;
+
+    return this.#run(insertStatement);
+  }
+
   /**
    * Stores a finished job in the jobs table.
    * @param {module:types.Job} job - The finished job to store.

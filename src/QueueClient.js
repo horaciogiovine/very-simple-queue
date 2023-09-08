@@ -144,7 +144,6 @@ class QueueClient {
    * @returns {Promise<string>} - The UUID of the created job.
    */
   async pushJob(payload, queue = 'default') {
-
     const job = {
       uuid: this.#uuidGenerator(),
       queue,
@@ -170,6 +169,36 @@ class QueueClient {
 
       await this.#dbDriver.updateJobByUuid(previousJob);
     }
+
+    return job.uuid;
+  }
+
+  async pushBulkJob(payload, queue = 'default') {
+    const values = [];
+
+    for (const url of payload) {
+      const job = {
+        uuid: this.#uuidGenerator(),
+        queue,
+        payload: url,
+        created_at: this.#getCurrentTimestamp(),
+        reserved_at: null,
+        failed_at: null,
+        domain: this.extractDomain(url),
+        cache_time: null,
+        cached_at: null,
+        is_cached: false,
+        http_status: null
+      };
+    }
+
+    // Create a value set for this URL
+    const valueSet = `('${job.uuid}', '${job.queue}', '${job.payload}', '${job.createdAt}', '${job.domain}', ${job.cacheTime}, ${job.cachedAt}, ${job.isCached}, ${job.httpStatus})`;
+
+    // Add the value set to the values array
+    values.push(valueSet);
+
+    await this.#dbDriver.storeBulkJob(values);
 
     return job.uuid;
   }
@@ -226,22 +255,22 @@ class QueueClient {
    * 
    * @returns {Promise<*>}
    */
-    async storeCrawlerHit(theCrawlerHit) {
-      const crawlerHit = {
-        uuid: this.#uuidGenerator(),
-        url: theCrawlerHit.url || '',
-        bot: theCrawlerHit.bot || '',
-        http_status: theCrawlerHit.httpStatus || 500,
-        time_to_render: theCrawlerHit.timeToRender || 0,
-        cache_hit: theCrawlerHit.cacheHit || false,
-      }
-
-      return await this.#dbDriver.storeCrawlerHit(crawlerHit);
+  async storeCrawlerHit(theCrawlerHit) {
+    const crawlerHit = {
+      uuid: this.#uuidGenerator(),
+      url: theCrawlerHit.url || '',
+      bot: theCrawlerHit.bot || '',
+      http_status: theCrawlerHit.httpStatus || 500,
+      time_to_render: theCrawlerHit.timeToRender || 0,
+      cache_hit: theCrawlerHit.cacheHit || false,
     }
 
-    async getCrawlerHits(pageNumber, pageSize) {
-      return this.#dbDriver.getCrawlerHits(pageNumber, pageSize);
-    }
+    return await this.#dbDriver.storeCrawlerHit(crawlerHit);
+  }
+
+  async getCrawlerHits(pageNumber, pageSize) {
+    return this.#dbDriver.getCrawlerHits(pageNumber, pageSize);
+  }
 
   /**
    * Handles a finished job specified by its UUID.
