@@ -182,8 +182,6 @@ class QueueClient {
         queue,
         payload: url,
         created_at: this.#getCurrentTimestamp(),
-        reserved_at: null,
-        failed_at: null,
         domain: this.extractDomain(url),
         cache_time: null,
         cached_at: null,
@@ -192,7 +190,7 @@ class QueueClient {
       };
 
       // Create a value set for this URL
-      const valueSet = `('${job.uuid}', '${job.queue}', '${job.payload}', '${job.createdAt}', '${job.domain}', ${job.cacheTime}, ${job.cachedAt}, ${job.isCached}, ${job.httpStatus})`;
+      const valueSet = `('${job.uuid}', '${job.queue}', '${job.payload}', '${job.created_at}', '${job.domain}', ${job.cache_time}, ${job.cached_at}, ${job.is_cached}, ${job.http_status})`;
 
       // Add the value set to the values array
       values.push(valueSet);
