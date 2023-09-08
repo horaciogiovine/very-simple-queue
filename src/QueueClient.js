@@ -196,9 +196,7 @@ class QueueClient {
       values.push(valueSet);
     };
 
-    await this.#dbDriver.storeBulkJob(values);
-
-    return job.uuid;
+    return await this.#dbDriver.storeBulkJob(values);
   }
 
   /**
