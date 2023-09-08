@@ -176,7 +176,7 @@ class QueueClient {
   async pushBulkJob(payload, queue = 'default') {
     const values = [];
 
-    for (const url of payload) {
+    payload.forEach(url => {
       const job = {
         uuid: this.#uuidGenerator(),
         queue,
@@ -190,13 +190,13 @@ class QueueClient {
         is_cached: false,
         http_status: null
       };
-    }
 
-    // Create a value set for this URL
-    const valueSet = `('${job.uuid}', '${job.queue}', '${job.payload}', '${job.createdAt}', '${job.domain}', ${job.cacheTime}, ${job.cachedAt}, ${job.isCached}, ${job.httpStatus})`;
+      // Create a value set for this URL
+      const valueSet = `('${job.uuid}', '${job.queue}', '${job.payload}', '${job.createdAt}', '${job.domain}', ${job.cacheTime}, ${job.cachedAt}, ${job.isCached}, ${job.httpStatus})`;
 
-    // Add the value set to the values array
-    values.push(valueSet);
+      // Add the value set to the values array
+      values.push(valueSet);
+    });
 
     await this.#dbDriver.storeBulkJob(values);
 
