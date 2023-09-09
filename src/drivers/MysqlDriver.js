@@ -111,12 +111,11 @@ class MysqlDriver {
           return null;
         }
 
-        const job = this.#parseJobResult(rawJob);
         const timestamp = this.#getCurrentTimestamp();
-        await this.#runWithConnection(connection, `UPDATE jobs SET reserved_at = ${timestamp} WHERE uuid = "${job.uuid}"`, []);
+        await this.#runWithConnection(connection, `UPDATE jobs SET reserved_at = ${timestamp} WHERE uuid = "${rawJob.uuid}"`, []);
         await this.#runWithConnection(connection, 'COMMIT', []);
         await connection.end();
-        return job;
+        return rawJob;
       } catch (error) {
         await this.#runWithConnection(connection, 'ROLLBACK', []);
         await connection.end();
@@ -214,7 +213,7 @@ class MysqlDriver {
     return this.#run(query, [
       job.uuid,
       job.queue,
-      JSON.stringify(job.payload),
+      job.payload,
       job.created_at,
       job.domain, // Add the domain column value
       job.cache_time, // Add the cache_time column value
@@ -244,7 +243,7 @@ class MysqlDriver {
     return this.#run(query, [
       uuidGenerator(),
       job.queue,
-      JSON.stringify(job.payload),
+      job.payload,
       job.created_at,
       job.completed_at,
       job.domain, // Add the domain column value

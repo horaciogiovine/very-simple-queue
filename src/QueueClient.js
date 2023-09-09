@@ -144,6 +144,7 @@ class QueueClient {
    * @returns {Promise<string>} - The UUID of the created job.
    */
   async pushJob(payload, queue = 'default') {
+    console.log('pushJob:', payload);
     const job = {
       uuid: this.#uuidGenerator(),
       queue,
@@ -151,7 +152,7 @@ class QueueClient {
       created_at: this.#getCurrentTimestamp(),
       reserved_at: null,
       failed_at: null,
-      domain: this.extractDomain(payload.url),
+      domain: this.extractDomain(payload),
       cache_time: null,
       cached_at: null,
       is_cached: false,
@@ -277,7 +278,7 @@ class QueueClient {
   async handleFinishedJobByUuid(jobUuid) {
     const job = await this.#dbDriver.getFinishedJobByUuid(jobUuid);
 
-    return this.pushJob(JSON.parse(job.payload), job.queue);
+    return this.pushJob(job.payload, job.queue);
   }
 
   /**
